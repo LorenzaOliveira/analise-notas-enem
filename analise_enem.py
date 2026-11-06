@@ -103,3 +103,58 @@ for area in redes["Área"].unique():
     nome_arquivo = nome_arquivo.replace("(", "").replace(")", "").replace(",", "")
     plt.savefig("graficos/comparacao_publica_privada_" + nome_arquivo + ".png")
     plt.show()
+
+# Leitura da planilha com os dados socioeconômicos
+renda = pd.read_excel("analise_enem_2010_2025.xlsx", sheet_name="por_renda")
+raca = pd.read_excel("analise_enem_2010_2025.xlsx", sheet_name="cruzamentos")
+
+renda = renda.sort_values("Ano")
+raca = raca.sort_values("Ano")
+
+# A redação não entra porque a escala de nota é diferente
+renda = renda[renda["Área"] != "Redação (apenas válidas)"]
+raca = raca[raca["Área"] != "Redação (apenas válidas)"]
+raca = raca[raca["Dimensão"] == "Cor/raça"]
+
+
+# GRÁFICO 9: Nota média por faixa de renda familiar
+plt.figure(figsize=(10, 6))
+
+faixas = ["Nenhuma renda", "Até 1 SM", "De 1 a 3 SM", "De 3 a 6 SM", "De 6 a 9 SM", "De 9 a 12 SM", "De 12 a 15 SM", "Mais de 15 SM"]
+
+for faixa in faixas:
+    dados = renda[renda["Grupo"] == faixa]
+    media = dados.groupby("Ano")["Média"].mean()
+    plt.plot(media.index, media.values, marker="o", label=faixa)
+
+plt.title("Nota média do ENEM por faixa de renda familiar")
+plt.xlabel("Ano")
+plt.xticks(renda["Ano"].unique())
+plt.ylabel("Nota média")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.savefig("graficos/renda_familiar.png")
+plt.show()
+
+
+# GRÁFICO 10: Nota média por cor/raça nas escolas públicas e privadas
+plt.figure(figsize=(10, 6))
+
+for rede in ["Pública", "Privada"]:
+    dados_rede = raca[raca["Rede"] == rede]
+
+    for cor in ["Branca", "Parda", "Preta"]:
+        dados = dados_rede[dados_rede["Sexo ou Cor/raça"] == cor]
+        media = dados.groupby("Ano")["Média"].mean()
+        plt.plot(media.index, media.values, marker="o", label=cor + " - Escola " + rede)
+
+plt.title("Nota média por cor/raça nas escolas públicas e privadas")
+plt.xlabel("Ano")
+plt.xticks(raca["Ano"].unique())
+plt.ylabel("Nota média")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.savefig("graficos/cor_raca_por_rede.png")
+plt.show()
