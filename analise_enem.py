@@ -15,6 +15,7 @@ os.makedirs("graficos", exist_ok=True)
 
 # Mostra no terminal somente a quantidade de candidatos por ano.
 # É utilizado o maior número de candidatos entre as áreas daquele ano.
+print("Quantidade de candidatos por ano:")
 candidatos = nacional.groupby("Ano")["Nº de candidatos"].max()
 
 for ano, quantidade in candidatos.items():
@@ -75,34 +76,83 @@ plt.savefig("graficos/nota_maxima_nacional.png")
 plt.show()
 
 
-# GRÁFICOS 4 em diante: Comparação entre escolas públicas e privadas
-# É criado um gráfico para cada área, para facilitar a leitura.
-for area in redes["Área"].unique():
-    dados_area = redes[redes["Área"] == area]
+# GRÁFICOS 4: Comparação entre escolas públicas e privadas
 
-    plt.figure(figsize=(10, 6))
+import math
+
+areas = redes["Área"].unique()
+
+# Define a quantidade de linhas e colunas
+colunas = 2
+linhas = math.ceil(len(areas) / colunas)
+
+# Cria uma única janela com os gráficos organizados em grade
+fig, axes = plt.subplots(
+    nrows=linhas,
+    ncols=colunas,
+    figsize=(16, 5 * linhas)
+)
+
+# Transforma os eixos em uma lista para facilitar o acesso
+axes = axes.flatten()
+
+for i, area in enumerate(areas):
+    dados_area = redes[redes["Área"] == area]
+    ax = axes[i]
 
     for rede in ["Pública", "Privada"]:
         dados_rede = dados_area[dados_area["Grupo"] == rede]
-        plt.plot(
+
+        ax.plot(
             dados_rede["Ano"],
             dados_rede["Média"],
             marker="o",
             label="Escola " + rede
         )
 
-    plt.title("Desempenho das escolas públicas e privadas - " + area)
-    plt.xlabel("Ano")
-    plt.xticks(dados_area["Ano"].unique())
-    plt.ylabel("Nota média")
-    plt.legend()
-    plt.grid()
-    plt.tight_layout()
+    ax.set_title("Desempenho - " + area)
+    ax.set_xlabel("Ano")
+    ax.set_xticks(dados_area["Ano"].unique())
+    ax.set_ylabel("Nota média")
+    ax.legend()
+    ax.grid()
 
+    # Salva cada gráfico individualmente
     nome_arquivo = area.lower().replace(" ", "_").replace("/", "_")
     nome_arquivo = nome_arquivo.replace("(", "").replace(")", "").replace(",", "")
-    plt.savefig("graficos/comparacao_publica_privada_" + nome_arquivo + ".png")
-    plt.show()
+
+    fig_individual, ax_individual = plt.subplots(figsize=(10, 6))
+
+    for rede in ["Pública", "Privada"]:
+        dados_rede = dados_area[dados_area["Grupo"] == rede]
+        ax_individual.plot(
+            dados_rede["Ano"],
+            dados_rede["Média"],
+            marker="o",
+            label="Escola " + rede
+        )
+
+    ax_individual.set_title("Desempenho das escolas públicas e privadas - " + area)
+    ax_individual.set_xlabel("Ano")
+    ax_individual.set_xticks(dados_area["Ano"].unique())
+    ax_individual.set_ylabel("Nota média")
+    ax_individual.legend()
+    ax_individual.grid()
+
+    fig_individual.tight_layout()
+    fig_individual.savefig("graficos/comparacao_publica_privada_" + nome_arquivo + ".png")
+    plt.close(fig_individual)
+
+# Remove espaços vazios caso a quantidade de gráficos seja ímpar
+for j in range(len(areas), len(axes)):
+    fig.delaxes(axes[j])
+
+plt.tight_layout()
+plt.subplots_adjust(
+    wspace=0.35,  
+    hspace=0.5  
+)
+plt.show()
 
 # Leitura da planilha com os dados socioeconômicos
 renda = pd.read_excel("analise_enem_2010_2025.xlsx", sheet_name="por_renda")
@@ -117,7 +167,7 @@ raca = raca[raca["Área"] != "Redação (apenas válidas)"]
 raca = raca[raca["Dimensão"] == "Cor/raça"]
 
 
-# GRÁFICO 9: Nota média por faixa de renda familiar
+# GRÁFICO 5: Nota média por faixa de renda familiar
 plt.figure(figsize=(10, 6))
 
 faixas = ["Nenhuma renda", "Até 1 SM", "De 1 a 3 SM", "De 3 a 6 SM", "De 6 a 9 SM", "De 9 a 12 SM", "De 12 a 15 SM", "Mais de 15 SM"]
@@ -138,7 +188,7 @@ plt.savefig("graficos/renda_familiar.png")
 plt.show()
 
 
-# GRÁFICO 10: Nota média por cor/raça nas escolas públicas e privadas
+# GRÁFICO 6: Nota média por cor/raça nas escolas públicas e privadas
 plt.figure(figsize=(10, 6))
 
 for rede in ["Pública", "Privada"]:
@@ -159,9 +209,8 @@ plt.tight_layout()
 plt.savefig("graficos/cor_raca_por_rede.png")
 plt.show()
 
-# ============================================================
-# ANÁLISE POR REGIÃO DO BRASIL
-# ============================================================
+
+# GRÁFICO 7: ANÁLISE POR REGIÃO DO BRASIL
 
 # Leitura dos dados por estado (UF onde o candidato fez a prova)
 estados = pd.read_excel("analise_enem_2010_2025.xlsx", sheet_name="por_estado_prova")
@@ -204,24 +253,7 @@ print("\nNota média por região em", ultimo_ano, ":")
 print(media_regiao.loc[ultimo_ano].sort_values(ascending=False).round(1))
 
 
-# GRÁFICO 14: Evolução da nota média por região
-plt.figure(figsize=(10, 6))
-
-for nome in ordem_regioes:
-    plt.plot(media_regiao.index, media_regiao[nome], marker="o", label=nome)
-
-plt.title("Evolução da nota média do ENEM por região")
-plt.xlabel("Ano")
-plt.xticks(media_regiao.index)
-plt.ylabel("Nota média")
-plt.legend()
-plt.grid()
-plt.tight_layout()
-plt.savefig("graficos/media_por_regiao.png")
-plt.show()
-
-
-# GRÁFICO 15: Evolução por região em cada área (4 painéis)
+# GRÁFICO 8: Evolução por região em cada área (4 painéis)
 areas = regiao["Área"].unique()
 fig, eixos = plt.subplots(2, 2, figsize=(14, 9), sharex=True)
 
@@ -242,7 +274,7 @@ plt.savefig("graficos/media_por_regiao_por_area.png")
 plt.show()
 
 
-# GRÁFICO 16: Nota média por região em cada área no último ano (barras agrupadas)
+# GRÁFICO 9: Nota média por região em cada área no último ano do enem (barras agrupadas)
 ultimo = (
     regiao[regiao["Ano"] == ultimo_ano]
     .pivot(index="Área", columns="Região", values="Média")[ordem_regioes]
@@ -259,7 +291,7 @@ plt.savefig("graficos/regiao_por_area_ultimo_ano.png")
 plt.show()
 
 
-# GRÁFICO 17: Diferença para a melhor região em cada ano
+# GRÁFICO 10: Diferença para a melhor região em cada ano
 # Mostra o quanto cada região está abaixo da região de maior nota naquele ano.
 distancia = media_regiao.sub(media_regiao.max(axis=1), axis=0)
 
