@@ -158,3 +158,122 @@ plt.grid()
 plt.tight_layout()
 plt.savefig("graficos/cor_raca_por_rede.png")
 plt.show()
+
+# ============================================================
+# ANÁLISE POR REGIÃO DO BRASIL
+# ============================================================
+
+# Leitura dos dados por estado (UF onde o candidato fez a prova)
+estados = pd.read_excel("analise_enem_2010_2025.xlsx", sheet_name="por_estado_prova")
+estados = estados.sort_values("Ano")
+
+# A redação não entra porque a escala de nota é diferente
+estados = estados[estados["Área"] != "Redação (apenas válidas)"]
+
+# Agrupamento dos estados em regiões
+regioes_uf = {
+    "AC": "Norte", "AP": "Norte", "AM": "Norte", "PA": "Norte",
+    "RO": "Norte", "RR": "Norte", "TO": "Norte",
+    "AL": "Nordeste", "BA": "Nordeste", "CE": "Nordeste", "MA": "Nordeste",
+    "PB": "Nordeste", "PE": "Nordeste", "PI": "Nordeste", "RN": "Nordeste", "SE": "Nordeste",
+    "DF": "Centro-Oeste", "GO": "Centro-Oeste", "MT": "Centro-Oeste", "MS": "Centro-Oeste",
+    "ES": "Sudeste", "MG": "Sudeste", "RJ": "Sudeste", "SP": "Sudeste",
+    "PR": "Sul", "RS": "Sul", "SC": "Sul"
+}
+estados["Região"] = estados["Grupo"].map(regioes_uf)
+
+# A média da região é uma média ponderada pelo nº de candidatos de cada estado.
+# Assim, estados maiores (ex.: SP) pesam mais que estados menores (ex.: AC).
+estados["Soma das notas"] = estados["Média"] * estados["Nº de candidatos"]
+
+regiao = (
+    estados.groupby(["Ano", "Área", "Região"])
+    .agg(soma=("Soma das notas", "sum"), candidatos=("Nº de candidatos", "sum"))
+    .reset_index()
+)
+regiao["Média"] = regiao["soma"] / regiao["candidatos"]
+
+ordem_regioes = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"]
+
+# Média geral por região (média entre as 4 áreas, como nos gráficos anteriores)
+media_regiao = regiao.groupby(["Ano", "Região"])["Média"].mean().unstack("Região")[ordem_regioes]
+
+# Mostra no terminal a média de cada região no último ano disponível
+ultimo_ano = media_regiao.index.max()
+print("\nNota média por região em", ultimo_ano, ":")
+print(media_regiao.loc[ultimo_ano].sort_values(ascending=False).round(1))
+
+
+# GRÁFICO 14: Evolução da nota média por região
+plt.figure(figsize=(10, 6))
+
+for nome in ordem_regioes:
+    plt.plot(media_regiao.index, media_regiao[nome], marker="o", label=nome)
+
+plt.title("Evolução da nota média do ENEM por região")
+plt.xlabel("Ano")
+plt.xticks(media_regiao.index)
+plt.ylabel("Nota média")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.savefig("graficos/media_por_regiao.png")
+plt.show()
+
+
+# GRÁFICO 15: Evolução por região em cada área (4 painéis)
+areas = regiao["Área"].unique()
+fig, eixos = plt.subplots(2, 2, figsize=(14, 9), sharex=True)
+
+for eixo, area in zip(eixos.flatten(), areas):
+    dados_area = regiao[regiao["Área"] == area]
+    for nome in ordem_regioes:
+        d = dados_area[dados_area["Região"] == nome]
+        eixo.plot(d["Ano"], d["Média"], marker="o", markersize=3, label=nome)
+    eixo.set_title(area)
+    eixo.set_ylabel("Nota média")
+    eixo.grid()
+
+eixos[0][0].legend()
+fig.supxlabel("Ano")
+fig.suptitle("Nota média por região em cada área do ENEM")
+plt.tight_layout()
+plt.savefig("graficos/media_por_regiao_por_area.png")
+plt.show()
+
+
+# GRÁFICO 16: Nota média por região em cada área no último ano (barras agrupadas)
+ultimo = (
+    regiao[regiao["Ano"] == ultimo_ano]
+    .pivot(index="Área", columns="Região", values="Média")[ordem_regioes]
+)
+
+ax = ultimo.plot(kind="bar", figsize=(11, 6), rot=0)
+plt.title("Nota média por região e área - " + str(ultimo_ano))
+plt.xlabel("Área")
+plt.ylabel("Nota média")
+plt.legend(title="Região")
+plt.grid(axis="y")
+plt.tight_layout()
+plt.savefig("graficos/regiao_por_area_ultimo_ano.png")
+plt.show()
+
+
+# GRÁFICO 17: Diferença para a melhor região em cada ano
+# Mostra o quanto cada região está abaixo da região de maior nota naquele ano.
+distancia = media_regiao.sub(media_regiao.max(axis=1), axis=0)
+
+plt.figure(figsize=(10, 6))
+
+for nome in ordem_regioes:
+    plt.plot(distancia.index, distancia[nome], marker="o", label=nome)
+
+plt.title("Distância da nota média de cada região para a região de maior nota")
+plt.xlabel("Ano")
+plt.xticks(distancia.index)
+plt.ylabel("Diferença em pontos")
+plt.legend()
+plt.grid()
+plt.tight_layout()
+plt.savefig("graficos/distancia_melhor_regiao.png")
+plt.show()
